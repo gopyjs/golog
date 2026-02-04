@@ -2,10 +2,10 @@ package golog
 
 import (
 	"context"
+	"strings"
+
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"strings"
-	"time"
 )
 
 type Level = zapcore.Level
@@ -35,7 +35,7 @@ func StringLevel(level string) Level {
 // LoggerInterface hide something you can implement new one
 type LoggerInterface interface {
 	SetOutputFile(logPath, fileName string) LoggerInterface
-	SetFileRotate(fileMaxAge, fileRotation time.Duration) LoggerInterface
+	SetFileRotate(maxSizeMB int, maxBackups int, maxAgeDay int) LoggerInterface
 	SetLevel(level Level) LoggerInterface
 	SetCallerShort(short bool) LoggerInterface
 	SetName(name string) LoggerInterface
@@ -44,7 +44,7 @@ type LoggerInterface interface {
 	SetOutputJson(json bool) LoggerInterface
 
 	GetOutputFile() (logPath, fileName string)
-	GetFileRotate() (fileMaxAge, fileRotation time.Duration)
+	GetFileRotate() (maxSizeMB int, maxBackups int, maxAgeDay int)
 	GetLevel() (level Level)
 	GetCallerShort() (short bool)
 	GetName() (name string)

@@ -2,14 +2,15 @@ package golog
 
 import (
 	"context"
-	rotateLogs "github.com/lestrrat-go/file-rotatelogs"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
 	"sort"
-	"time"
+
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 type logger struct {
@@ -24,7 +25,9 @@ type logger struct {
 	logPath  string
 	fileName string
 
-	fileMaxAge, fileRotation time.Duration
+	maxSizeMB  int
+	maxBackups int
+	maxAgeDay  int
 
 	isOutputStdout bool
 	skip           int
@@ -101,7 +104,7 @@ func (l *logger) InitLogger() {
 				return lvl >= DebugLevel
 			})
 
-			debugWriter := getWriter(false, debugFileName, l.fileMaxAge, l.fileRotation)
+			debugWriter := getWriter(false, debugFileName, l.maxSizeMB, l.maxBackups, l.maxAgeDay)
 			debugWriteSync := zapcore.AddSync(debugWriter)
 			core := zapcore.NewCore(
 				zConfig,
@@ -117,7 +120,7 @@ func (l *logger) InitLogger() {
 				return lvl >= InfoLevel
 			})
 
-			infoWriter := getWriter(false, infoFileName, l.fileMaxAge, l.fileRotation)
+			infoWriter := getWriter(false, infoFileName, l.maxSizeMB, l.maxBackups, l.maxAgeDay)
 			infoWriteSync := zapcore.AddSync(infoWriter)
 			core := zapcore.NewCore(
 				zConfig,
@@ -132,7 +135,7 @@ func (l *logger) InitLogger() {
 				return lvl >= WarnLevel
 			})
 
-			warnWriter := getWriter(false, warnFileName, l.fileMaxAge, l.fileRotation)
+			warnWriter := getWriter(false, warnFileName, l.maxSizeMB, l.maxBackups, l.maxAgeDay)
 			warnWriteSync := zapcore.AddSync(warnWriter)
 			core := zapcore.NewCore(
 				zConfig,
@@ -147,7 +150,7 @@ func (l *logger) InitLogger() {
 				return lvl >= ErrorLevel
 			})
 
-			errorWriter := getWriter(false, errFileName, l.fileMaxAge, l.fileRotation)
+			errorWriter := getWriter(false, errFileName, l.maxSizeMB, l.maxBackups, l.maxAgeDay)
 			errorWriteSync := zapcore.AddSync(errorWriter)
 			core := zapcore.NewCore(
 				zConfig,
@@ -202,29 +205,19 @@ func InitLogger() {
 	_log.InitLogger()
 }
 
-func getWriter(isOutputStdout bool, filename string, maxAge, rotation time.Duration) io.Writer {
-	if maxAge <= 0 {
-		maxAge = 30 * 24 * time.Hour
+func getWriter(isOutputStdout bool, filename string, maxSizeMB int, maxBackups int, maxAgeDay int) io.Writer {
+	maxAgeDays := 30
+	if maxAgeDay > 0 {
+		maxAgeDays = maxAgeDay
 	}
 
-	if rotation <= 0 {
-		rotation = 24 * time.Hour
-	}
-
-	format := "%Y%m%d%H%M.log"
-	if rotation == 24*time.Hour {
-		format = "%Y%m%d.log"
-	}
-
-	hook, err := rotateLogs.New(
-		filename+"."+format,
-		rotateLogs.WithLinkName(filename),
-		rotateLogs.WithMaxAge(maxAge),
-		rotateLogs.WithRotationTime(rotation),
-	)
-
-	if err != nil {
-		panic(err)
+	hook := &lumberjack.Logger{
+		Filename:   filename,
+		MaxSize:    maxSizeMB,
+		MaxBackups: maxBackups,
+		MaxAge:     maxAgeDays,
+		Compress:   false,
+		LocalTime:  true,
 	}
 
 	if isOutputStdout {
@@ -235,7 +228,12 @@ func getWriter(isOutputStdout bool, filename string, maxAge, rotation time.Durat
 }
 
 func (l *logger) Sync() error {
-	return l.sugarLog.Sync()
+	err := l.sugarLog.Sync()
+	if !errors.Is(err, os.ErrInvalid) {
+		return nil
+	}
+
+	return nil
 }
 
 func Sync() error {
@@ -293,22 +291,36 @@ func (l *logger) GetIsOutputStdout() (isOutputStdout bool) {
 	return l.isOutputStdout
 }
 
-func SetFileRotate(fileMaxAge, fileRotation time.Duration) LoggerInterface {
-	return _log.SetFileRotate(fileMaxAge, fileRotation)
+func SetFileRotate(maxSizeMB int, maxBackups int, maxAgeDay int) LoggerInterface {
+	return _log.SetFileRotate(maxSizeMB, maxBackups, maxAgeDay)
 }
 
-func (l *logger) SetFileRotate(fileMaxAge, fileRotation time.Duration) LoggerInterface {
-	l.fileMaxAge = fileMaxAge
-	l.fileRotation = fileRotation
+func (l *logger) SetFileRotate(maxSizeMB int, maxBackups int, maxAgeDay int) LoggerInterface {
+	if maxSizeMB <= 0 {
+		maxSizeMB = 200
+	}
+
+	if maxBackups <= 0 {
+		maxBackups = 1000
+	}
+
+	if maxAgeDay <= 0 {
+		maxAgeDay = 7
+	}
+
+	l.maxAgeDay = maxAgeDay
+	l.maxSizeMB = maxSizeMB
+	l.maxBackups = maxBackups
+
 	return l
 }
 
-func GetFileRotate() (fileMaxAge, fileRotation time.Duration) {
+func GetFileRotate() (maxSizeMB int, maxBackups int, maxAgeDay int) {
 	return _log.GetFileRotate()
 }
 
-func (l *logger) GetFileRotate() (fileMaxAge, fileRotation time.Duration) {
-	return l.fileMaxAge, l.fileRotation
+func (l *logger) GetFileRotate() (maxSizeMB int, maxBackups int, maxAgeDay int) {
+	return l.maxSizeMB, l.maxBackups, l.maxAgeDay
 }
 
 func SetCallerShort(short bool) LoggerInterface {
@@ -365,9 +377,8 @@ func (l *logger) GetLevel() (level Level) {
 func (l *logger) SetOutputFile(logPath, fileName string) LoggerInterface {
 	l.logPath = logPath
 	l.fileName = fileName
-	if l.fileMaxAge == 0 {
-		l.fileMaxAge = 30 * 24 * time.Hour
-		l.fileRotation = 24 * time.Hour
+	if l.maxSizeMB <= 0 || l.maxBackups <= 0 || l.maxAgeDay <= 0 {
+		l.SetFileRotate(l.maxSizeMB, l.maxBackups, l.maxAgeDay)
 	}
 	return l
 }

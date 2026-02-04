@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"testing"
-	"time"
 )
 
 func TestNew(t *testing.T) {
@@ -14,7 +13,7 @@ func TestNew(t *testing.T) {
 	SetName("log_demo")
 	SetIsOutputStdout(true)
 	SetOutputFile("./log", "demo")
-	SetFileRotate(time.Hour, 200*time.Minute)
+	SetFileRotate(100, 1000, 15)
 	AddFieldFunc(func(ctx context.Context, m map[string]interface{}) {
 		m["diy_filed"] = ctx.Value("diy")
 	})

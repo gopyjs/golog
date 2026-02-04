@@ -1,9 +1,9 @@
 # Log the world very easy
 
-[![GitHub forks](https://img.shields.io/github/forks/hunterhug/golog.svg?style=social&label=Forks)](https://github.com/hunterhug/golog/network)
-[![GitHub stars](https://img.shields.io/github/stars/hunterhug/golog.svg?style=social&label=Stars)](https://github.com/hunterhug/golog/stargazers)
-[![GitHub last commit](https://img.shields.io/github/last-commit/hunterhug/golog.svg)](https://github.com/hunterhug/golog)
-[![GitHub issues](https://img.shields.io/github/issues/hunterhug/golog.svg)](https://github.com/hunterhug/golog/issues)
+[![GitHub forks](https://img.shields.io/github/forks/hunterhug/golog.svg?style=social&label=Forks)](https://github.com/hunterhug/golog/v2/network)
+[![GitHub stars](https://img.shields.io/github/stars/hunterhug/golog.svg?style=social&label=Stars)](https://github.com/hunterhug/golog/v2/stargazers)
+[![GitHub last commit](https://img.shields.io/github/last-commit/hunterhug/golog.svg)](https://github.com/hunterhug/golog/v2)
+[![GitHub issues](https://img.shields.io/github/issues/hunterhug/golog.svg)](https://github.com/hunterhug/golog/v2/issues)
 [![License](https://img.shields.io/badge/license-Apache%202-4EB1BA.svg)](https://www.apache.org/licenses/LICENSE-2.0.html)
 
 Thanks To Uber ZapLog! Log to console or file very easy and fast!
@@ -15,7 +15,7 @@ Thanks To Uber ZapLog! Log to console or file very easy and fast!
 Simple：
 
 ```
-go get -v github.com/hunterhug/golog
+go get -v github.com/hunterhug/golog/v2
 ```
 
 ## Demo
@@ -27,7 +27,7 @@ default logger is InfoLevel, and has long func caller.
 ```go
 package main
 
-import . "github.com/hunterhug/golog"
+import . "github.com/hunterhug/golog/v2"
 
 func main() {
 	// use default log
@@ -86,7 +86,7 @@ package main
 import (
 	"context"
 	"fmt"
-	. "github.com/hunterhug/golog"
+	. "github.com/hunterhug/golog/v2"
 	"time"
 )
 
@@ -100,7 +100,7 @@ func main() {
 		m["diy_filed"] = ctx.Value("diy")
 	})
 
-	SetOutputFile("./log", "demo").SetFileRotate(30*24*time.Hour, 24*time.Hour)
+	SetOutputFile("./log", "demo").SetFileRotate(100, 1000, 15)
 	SetIsOutputStdout(true)
 	InitLogger()
 
@@ -134,17 +134,17 @@ very easy to understand.
 
 ```go
 type LoggerInterface interface {
-	SetOutputFile(logPath, fileName string)
-	SetFileRotate(fileMaxAge, fileRotation time.Duration)
-	SetLevel(level Level)
-	SetCallerShort(short bool)
-	SetName(name string)
-	SetIsOutputStdout(isOutputStdout bool)
-	SetCallerSkip(skip int)
-	SetOutputJson(json bool)
+	SetOutputFile(logPath, fileName string) LoggerInterface
+	SetFileRotate(maxSizeMB int, maxBackups int, maxAgeDay int) LoggerInterface
+	SetLevel(level Level) LoggerInterface
+	SetCallerShort(short bool) LoggerInterface
+	SetName(name string) LoggerInterface
+	SetIsOutputStdout(isOutputStdout bool) LoggerInterface
+	SetCallerSkip(skip int) LoggerInterface
+	SetOutputJson(json bool) LoggerInterface
 
 	GetOutputFile() (logPath, fileName string)
-	GetFileRotate() (fileMaxAge, fileRotation time.Duration)
+	GetFileRotate() (maxSizeMB int, maxBackups int, maxAgeDay int)
 	GetLevel() (level Level)
 	GetCallerShort() (short bool)
 	GetName() (name string)
@@ -152,7 +152,9 @@ type LoggerInterface interface {
 	GetCallerSkip() (skip int)
 	GetOutputJson() bool
 
+	// InitLogger init logger should call this when change config
 	InitLogger()
+	// Sync terminal the logger should call this to flush
 	Sync() error
 
 	Panicf(template string, args ...interface{})
@@ -190,7 +192,11 @@ type LoggerInterface interface {
 	InfoContextWithFields(ctx context.Context, fields map[string]interface{}, template string, args ...interface{})
 	DebugContextWithFields(ctx context.Context, fields map[string]interface{}, template string, args ...interface{})
 
+	// AddFieldFunc filter deal the fields
 	AddFieldFunc(func(context.Context, map[string]interface{}))
+
+	GetZapLogger() *zap.Logger
+	GetZapSugaredLogger() *zap.SugaredLogger
 }
 ```
 

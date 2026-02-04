@@ -1,6 +1,10 @@
 package main
 
-import . "github.com/hunterhug/golog"
+import (
+	"fmt"
+
+	. "github.com/hunterhug/golog/v2"
+)
 
 func main() {
 	// use default log
@@ -12,7 +16,11 @@ func main() {
 	Debugf("now is Debugf: %d,%s", 2, "good")
 	Warnf("now is Warnf: %d,%s", 2, "good")
 	Errorf("now is Errorf: %d,%s", 2, "good")
-	Sync()
+	err := Sync()
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
 
 	// config log
 	SetLevel(DebugLevel).SetCallerShort(true).SetOutputJson(true).InitLogger()
@@ -25,6 +33,10 @@ func main() {
 	Debugf("now is Debugf: %d,%s", 2, "good")
 	Warnf("now is Warnf: %d,%s", 2, "good")
 	Errorf("now is Errorf: %d,%s", 2, "good")
-	Sync()
+	err = Sync()
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
 
 }
