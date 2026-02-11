@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -56,10 +57,51 @@ func New() LoggerInterface {
 	l.short = false
 	l.json = false
 	l.splitByLevel = false
-	l.isOutputFile = false
+	l.isOutputFile = true
 	l.isOutputStdout = true
 	return l
 }
+
+func envBool(key string, defaultValue bool) bool {
+	if val, ok := os.LookupEnv(key); ok {
+		return val == "true"
+	}
+	return defaultValue
+}
+
+func envStr(key string, defaultValue string) string {
+	if val, ok := os.LookupEnv(key); ok {
+		return val
+	}
+	return defaultValue
+}
+
+func envInt(key string, defaultValue int) int {
+	if val, ok := os.LookupEnv(key); ok {
+		v, err := strconv.Atoi(val)
+		if err != nil {
+			return defaultValue
+		}
+		return v
+	}
+	return defaultValue
+}
+
+func (l *logger) InitFromEnv() LoggerInterface {
+	l.level = StringLevel(envStr("LOG_LEVEL", "info"))
+	l.short = envBool("LOG_SHORT", false)
+	l.json = envBool("LOG_JSON", false)
+	l.splitByLevel = envBool("LOG_SPLIT_BY_LEVEL", false)
+	l.isOutputFile = envBool("LOG_OUTPUT_FILE", true)
+	l.isOutputStdout = envBool("LOG_OUTPUT_STDOUT", true)
+	l.logPath = envStr("LOG_PATH", "./log")
+	l.fileName = envStr("LOG_FILE_NAME", "app.log")
+	l.maxSizeMB = envInt("LOG_MAX_SIZE_MB", 100)
+	l.maxBackups = envInt("LOG_MAX_BACKUPS", 3)
+	l.maxAgeDay = envInt("LOG_MAX_AGE_DAY", 3)
+	return l
+}
+
 
 // ; levelConfig 定义按级别拆分日志时的级别配置表
 var levelConfigs = []struct {
@@ -140,26 +182,30 @@ func (l *logger) createStdoutCore() zapcore.Core {
 func (l *logger) buildCores() []zapcore.Core {
 	cores := make([]zapcore.Core, 0)
 
-	if l.logPath == "" {
-		//; 无文件输出路径，仅输出到 stdout
-		return []zapcore.Core{l.createStdoutCore()}
-	}
-
-	if l.splitByLevel {
-		//; 按级别拆分文件：精确匹配，每个级别只写入自己的文件（无重复）
-		for _, cfg := range levelConfigs {
-			if l.level <= cfg.level {
-				filename := l.buildLogFileName(cfg.suffix, cfg.defaultName)
-				cores = append(cores, l.createExactLevelCore(filename, cfg.level))
+	//; 根据配置决定是否输出到文件
+	if l.isOutputFile && l.logPath != "" {
+		if l.splitByLevel {
+			//; 按级别拆分文件：精确匹配，每个级别只写入自己的文件（无重复）
+			for _, cfg := range levelConfigs {
+				if l.level <= cfg.level {
+					filename := l.buildLogFileName(cfg.suffix, cfg.defaultName)
+					cores = append(cores, l.createExactLevelCore(filename, cfg.level))
+				}
 			}
+		} else {
+			//; 不区分级别，所有日志写入同一个文件
+			filename := l.buildLogFileName("", "app.log")
+			cores = append(cores, l.createFileCore(filename, l.level))
 		}
-	} else {
-		//; 不区分级别，所有日志写入同一个文件
-		filename := l.buildLogFileName("", "app.log")
-		cores = append(cores, l.createFileCore(filename, l.level))
 	}
 
+	//; 根据配置决定是否输出到 stdout
 	if l.isOutputStdout {
+		cores = append(cores, l.createStdoutCore())
+	}
+
+	//; 如果没有任何输出目标，默认输出到 stdout
+	if len(cores) == 0 {
 		cores = append(cores, l.createStdoutCore())
 	}
 
@@ -288,6 +334,23 @@ func GetIsOutputStdout() (isOutputStdout bool) {
 
 func (l *logger) GetIsOutputStdout() (isOutputStdout bool) {
 	return l.isOutputStdout
+}
+
+func SetIsOutputFile(isOutputFile bool) LoggerInterface {
+	return _log.SetIsOutputFile(isOutputFile)
+}
+
+func (l *logger) SetIsOutputFile(isOutputFile bool) LoggerInterface {
+	l.isOutputFile = isOutputFile
+	return l
+}
+
+func GetIsOutputFile() (isOutputFile bool) {
+	return _log.GetIsOutputFile()
+}
+
+func (l *logger) GetIsOutputFile() (isOutputFile bool) {
+	return l.isOutputFile
 }
 
 func SetSplitByLevel(split bool) LoggerInterface {

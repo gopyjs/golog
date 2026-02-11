@@ -47,6 +47,7 @@ type LoggerInterface interface {
 	SetCallerShort(short bool) LoggerInterface
 	SetName(name string) LoggerInterface
 	SetIsOutputStdout(isOutputStdout bool) LoggerInterface
+	SetIsOutputFile(isOutputFile bool) LoggerInterface
 	SetCallerSkip(skip int) LoggerInterface
 	SetOutputJson(json bool) LoggerInterface
 	SetSplitByLevel(split bool) LoggerInterface
@@ -57,6 +58,7 @@ type LoggerInterface interface {
 	GetCallerShort() (short bool)
 	GetName() (name string)
 	GetIsOutputStdout() (isOutputStdout bool)
+	GetIsOutputFile() (isOutputFile bool)
 	GetCallerSkip() (skip int)
 	GetOutputJson() bool
 	GetSplitByLevel() (split bool)
