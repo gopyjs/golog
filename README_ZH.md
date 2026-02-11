@@ -136,6 +136,48 @@ func main() {
 
 您可以看到目录下有个文件夹 `·/log`，里面就是日志了，可以打开看看。 你会很好奇，控制台也打印出了日志，因为我们同时配置了日志输出到终端，使用 `SetIsOutputStdout` 函数即可。
 
+### 例子3：按日志级别拆分文件
+
+默认情况下，所有日志都写入一个文件（`app.log`）。你也可以启用按日志级别拆分，让每个级别的日志写入独立的文件：
+
+```go
+package main
+
+import (
+    . "github.com/hunterhug/golog/v2"
+)
+
+func main() {
+    SetName("log_demo")
+    SetLevel(DebugLevel)
+    SetOutputFile("./log", "demo")
+    SetFileRotate(100, 1000, 15)
+
+    // 启用按级别拆分（默认为 false）
+    // 每个级别的日志只会写入自己的文件（无重复写入）
+    SetSplitByLevel(true)
+
+    InitLogger()
+
+    Debug("debug message")   // 只写入 demo_debug.log
+    Info("info message")     // 只写入 demo_info.log
+    Warn("warn message")     // 只写入 demo_warn.log
+    Error("error message")   // 只写入 demo_error.log
+
+    Sync()
+}
+```
+
+当 `SetSplitByLevel(true)` 时：
+- 每个日志级别只写入自己的文件
+- 无 IO 重复，性能更好
+- 生成文件：`demo_debug.log`、`demo_info.log`、`demo_warn.log`、`demo_error.log` 等
+
+当 `SetSplitByLevel(false)`（默认）：
+- 所有日志写入同一个文件
+- 适合高吞吐场景
+- 生成文件：`demo.log`
+
 ## 用法一览
 
 学习这个库非常简单，看看下面的接口方法。
@@ -150,8 +192,10 @@ type LoggerInterface interface {
 	SetIsOutputStdout(isOutputStdout bool) LoggerInterface
 	SetCallerSkip(skip int) LoggerInterface
 	SetOutputJson(json bool) LoggerInterface
+	SetSplitByLevel(split bool) LoggerInterface
 
 	GetOutputFile() (logPath, fileName string)
+	GetSplitByLevel() (split bool)
 	GetFileRotate() (maxSizeMB int, maxBackups int, maxAgeDay int)
 	GetLevel() (level Level)
 	GetCallerShort() (short bool)

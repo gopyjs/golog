@@ -128,6 +128,48 @@ func main() {
 
 Output is in the file dir `·/log`, due to `SetIsOutputStdout` is true it also output to console.
 
+### Demo3: Split Log by Level
+
+By default, all logs are written to a single file (`app.log`). You can also split logs into different files by level:
+
+```go
+package main
+
+import (
+    . "github.com/hunterhug/golog/v2"
+)
+
+func main() {
+    SetName("log_demo")
+    SetLevel(DebugLevel)
+    SetOutputFile("./log", "demo")
+    SetFileRotate(100, 1000, 15)
+
+    // Enable split by level (default is false)
+    // Each level will be written to its own file only (no duplication)
+    SetSplitByLevel(true)
+
+    InitLogger()
+
+    Debug("debug message")   // Written to demo_debug.log only
+    Info("info message")     // Written to demo_info.log only
+    Warn("warn message")     // Written to demo_warn.log only
+    Error("error message")   // Written to demo_error.log only
+
+    Sync()
+}
+```
+
+When `SetSplitByLevel(true)`:
+- Each log level is written to its own file only
+- No IO duplication, better performance
+- Files: `demo_debug.log`, `demo_info.log`, `demo_warn.log`, `demo_error.log`, etc.
+
+When `SetSplitByLevel(false)` (default):
+- All logs are written to a single file
+- Better for high-throughput scenarios
+- File: `demo.log`
+
 ## Usage
 
 very easy to understand.
@@ -142,8 +184,10 @@ type LoggerInterface interface {
 	SetIsOutputStdout(isOutputStdout bool) LoggerInterface
 	SetCallerSkip(skip int) LoggerInterface
 	SetOutputJson(json bool) LoggerInterface
+	SetSplitByLevel(split bool) LoggerInterface
 
 	GetOutputFile() (logPath, fileName string)
+	GetSplitByLevel() (split bool)
 	GetFileRotate() (maxSizeMB int, maxBackups int, maxAgeDay int)
 	GetLevel() (level Level)
 	GetCallerShort() (short bool)

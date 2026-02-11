@@ -100,7 +100,7 @@ func (l *logger) buildEncoder() zapcore.Encoder {
 	return zapcore.NewJSONEncoder(encoderConfig)
 }
 
-// ; createFileCore 创建文件输出的 zapcore.Core
+// ; createFileCore 创建文件输出的 zapcore.Core（范围匹配：>= minLevel）
 func (l *logger) createFileCore(filename string, minLevel Level) zapcore.Core {
 	writer := getWriter(false, filename, l.maxSizeMB, l.maxBackups, l.maxAgeDay)
 	return zapcore.NewCore(
@@ -108,6 +108,18 @@ func (l *logger) createFileCore(filename string, minLevel Level) zapcore.Core {
 		zapcore.AddSync(writer),
 		zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
 			return lvl >= minLevel
+		}),
+	)
+}
+
+// ; createExactLevelCore 创建精确级别匹配的 zapcore.Core（只接收指定级别）
+func (l *logger) createExactLevelCore(filename string, exactLevel Level) zapcore.Core {
+	writer := getWriter(false, filename, l.maxSizeMB, l.maxBackups, l.maxAgeDay)
+	return zapcore.NewCore(
+		l.buildEncoder(),
+		zapcore.AddSync(writer),
+		zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
+			return lvl == exactLevel
 		}),
 	)
 }
@@ -134,11 +146,11 @@ func (l *logger) buildCores() []zapcore.Core {
 	}
 
 	if l.splitByLevel {
-		//; 按级别拆分文件：为每个符合条件的级别创建独立的 core
+		//; 按级别拆分文件：精确匹配，每个级别只写入自己的文件（无重复）
 		for _, cfg := range levelConfigs {
 			if l.level <= cfg.level {
 				filename := l.buildLogFileName(cfg.suffix, cfg.defaultName)
-				cores = append(cores, l.createFileCore(filename, cfg.level))
+				cores = append(cores, l.createExactLevelCore(filename, cfg.level))
 			}
 		}
 	} else {
