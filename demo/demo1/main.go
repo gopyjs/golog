@@ -39,4 +39,6 @@ func main() {
 		return
 	}
 
+	// Use Close() to flush buffers and release resources on application exit
+	defer Close()
 }

@@ -57,6 +57,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Fixed potential IO overhead when logs were written to multiple files simultaneously
 
+- **Added `Close()` method**
+  - Flushes any buffered log entries and releases resources
+  - Should be called when application exits or logger is no longer needed
+  - Usage: `defer golog.Close()` or call in graceful shutdown handler
+
+- **Added `SetOnError()` method and automatic fallback**
+  - Set error callback function to handle log write errors
+  - Automatic fallback to stdout when file write fails
+  - Usage:
+    ```go
+    golog.SetOnError(func(err error) {
+        // Handle error, e.g., send alert
+        fmt.Printf("Log error: %v\n", err)
+    })
+    ```
+
 ## [2.0.0] - Previous Release
 
 ### origin: https://github.com/hunterhug/golog/v2

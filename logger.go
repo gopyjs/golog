@@ -51,6 +51,7 @@ type LoggerInterface interface {
 	SetCallerSkip(skip int) LoggerInterface
 	SetOutputJson(json bool) LoggerInterface
 	SetSplitByLevel(split bool) LoggerInterface
+	SetOnError(f func(error)) LoggerInterface
 
 	GetOutputFile() (logPath, fileName string)
 	GetFileRotate() (maxSizeMB int, maxBackups int, maxAgeDay int)
@@ -67,6 +68,9 @@ type LoggerInterface interface {
 	InitLogger()
 	// Sync terminal the logger should call this to flush
 	Sync() error
+	// Close flushes any buffered log entries and releases resources.
+	// It should be called when the application exits or the logger is no longer needed.
+	Close() error
 
 	Panicf(template string, args ...interface{})
 	Fatalf(template string, args ...interface{})

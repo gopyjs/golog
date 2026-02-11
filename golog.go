@@ -3,6 +3,7 @@ package golog
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -34,9 +35,19 @@ type logger struct {
 	isOutputStdout bool
 	isOutputFile   bool
 	splitByLevel   bool
+
+	onError func(error) // 错误回调函数，用于处理日志写入异常
 }
 
 var _log = New()
+var (
+	DefaultLogPath    string = "./logs"
+	DefaultFileName   string = "golog_app.log"
+	DefaultLogLevel   string = "info"
+	DefaultMaxSizeMB  int    = 50
+	DefaultMaxBackups int    = 5
+	DefaultMaxAgeDay  int    = 3
+)
 
 func init() {
 	// skip is 2, we wrap 2 layer
@@ -88,20 +99,19 @@ func envInt(key string, defaultValue int) int {
 }
 
 func (l *logger) InitFromEnv() LoggerInterface {
-	l.level = StringLevel(envStr("LOG_LEVEL", "info"))
+	l.level = StringLevel(envStr("LOG_LEVEL", DefaultLogLevel))
 	l.short = envBool("LOG_SHORT", false)
 	l.json = envBool("LOG_JSON", false)
 	l.splitByLevel = envBool("LOG_SPLIT_BY_LEVEL", false)
 	l.isOutputFile = envBool("LOG_OUTPUT_FILE", true)
 	l.isOutputStdout = envBool("LOG_OUTPUT_STDOUT", true)
-	l.logPath = envStr("LOG_PATH", "./log")
-	l.fileName = envStr("LOG_FILE_NAME", "app.log")
-	l.maxSizeMB = envInt("LOG_MAX_SIZE_MB", 100)
-	l.maxBackups = envInt("LOG_MAX_BACKUPS", 3)
-	l.maxAgeDay = envInt("LOG_MAX_AGE_DAY", 3)
+	l.logPath = envStr("LOG_PATH", DefaultLogPath)
+	l.fileName = envStr("LOG_FILE_NAME", DefaultFileName)
+	l.maxSizeMB = envInt("LOG_MAX_SIZE_MB", DefaultMaxSizeMB)
+	l.maxBackups = envInt("LOG_MAX_BACKUPS", DefaultMaxBackups)
+	l.maxAgeDay = envInt("LOG_MAX_AGE_DAY", DefaultMaxAgeDay)
 	return l
 }
-
 
 // ; levelConfig 定义按级别拆分日志时的级别配置表
 var levelConfigs = []struct {
@@ -145,9 +155,11 @@ func (l *logger) buildEncoder() zapcore.Encoder {
 // ; createFileCore 创建文件输出的 zapcore.Core（范围匹配：>= minLevel）
 func (l *logger) createFileCore(filename string, minLevel Level) zapcore.Core {
 	writer := getWriter(false, filename, l.maxSizeMB, l.maxBackups, l.maxAgeDay)
+	// ; 包装 writer 以捕获错误
+	wrappedWriter := &errorHandlingWriter{logger: l, writer: writer}
 	return zapcore.NewCore(
 		l.buildEncoder(),
-		zapcore.AddSync(writer),
+		zapcore.AddSync(wrappedWriter),
 		zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
 			return lvl >= minLevel
 		}),
@@ -157,9 +169,11 @@ func (l *logger) createFileCore(filename string, minLevel Level) zapcore.Core {
 // ; createExactLevelCore 创建精确级别匹配的 zapcore.Core（只接收指定级别）
 func (l *logger) createExactLevelCore(filename string, exactLevel Level) zapcore.Core {
 	writer := getWriter(false, filename, l.maxSizeMB, l.maxBackups, l.maxAgeDay)
+	// ; 包装 writer 以捕获错误
+	wrappedWriter := &errorHandlingWriter{logger: l, writer: writer}
 	return zapcore.NewCore(
 		l.buildEncoder(),
-		zapcore.AddSync(writer),
+		zapcore.AddSync(wrappedWriter),
 		zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
 			return lvl == exactLevel
 		}),
@@ -194,7 +208,7 @@ func (l *logger) buildCores() []zapcore.Core {
 			}
 		} else {
 			//; 不区分级别，所有日志写入同一个文件
-			filename := l.buildLogFileName("", "app.log")
+			filename := l.buildLogFileName("", "golog_app.log")
 			cores = append(cores, l.createFileCore(filename, l.level))
 		}
 	}
@@ -250,6 +264,25 @@ func InitLogger() {
 	_log.InitLogger()
 }
 
+// errorHandlingWriter 包装 writer 并捕获写入错误，触发自动降级
+type errorHandlingWriter struct {
+	logger *logger
+	writer io.Writer
+}
+
+func (w *errorHandlingWriter) Write(p []byte) (n int, err error) {
+	n, err = w.writer.Write(p)
+	if err != nil {
+		// ; 触发错误回调
+		if w.logger.onError != nil {
+			w.logger.onError(fmt.Errorf("log write error: %w", err))
+		}
+		// ; 自动降级到 stdout
+		w.logger.fallbackToStdout()
+	}
+	return n, err
+}
+
 func getWriter(isOutputStdout bool, filename string, maxSizeMB int, maxBackups int, maxAgeDay int) io.Writer {
 	maxAgeDays := 30
 	if maxAgeDay > 0 {
@@ -283,6 +316,26 @@ func (l *logger) Sync() error {
 
 func Sync() error {
 	return _log.Sync()
+}
+
+// Close flushes any buffered log entries and releases resources.
+// It should be called when the application exits or the logger is no longer needed.
+func (l *logger) Close() error {
+	return l.Sync()
+}
+
+func Close() error {
+	return _log.Close()
+}
+
+// fallbackToStdout 降级到 stdout 输出
+func (l *logger) fallbackToStdout() {
+	if l.onError != nil {
+		l.onError(fmt.Errorf("fallback to stdout due to file write error"))
+	}
+	l.isOutputFile = false
+	l.isOutputStdout = true
+	l.InitLogger()
 }
 
 func SetName(name string) LoggerInterface {
@@ -353,6 +406,15 @@ func (l *logger) GetIsOutputFile() (isOutputFile bool) {
 	return l.isOutputFile
 }
 
+func SetOnError(f func(error)) LoggerInterface {
+	return _log.SetOnError(f)
+}
+
+func (l *logger) SetOnError(f func(error)) LoggerInterface {
+	l.onError = f
+	return l
+}
+
 func SetSplitByLevel(split bool) LoggerInterface {
 	return _log.SetSplitByLevel(split)
 }
@@ -376,15 +438,15 @@ func SetFileRotate(maxSizeMB int, maxBackups int, maxAgeDay int) LoggerInterface
 
 func (l *logger) SetFileRotate(maxSizeMB int, maxBackups int, maxAgeDay int) LoggerInterface {
 	if maxSizeMB <= 0 {
-		maxSizeMB = 200
+		maxSizeMB = 50
 	}
 
 	if maxBackups <= 0 {
-		maxBackups = 1000
+		maxBackups = 5
 	}
 
 	if maxAgeDay <= 0 {
-		maxAgeDay = 7
+		maxAgeDay = 3
 	}
 
 	l.maxAgeDay = maxAgeDay
@@ -456,9 +518,6 @@ func (l *logger) GetLevel() (level Level) {
 func (l *logger) SetOutputFile(logPath, fileName string) LoggerInterface {
 	l.logPath = logPath
 	l.fileName = fileName
-	if l.maxSizeMB <= 0 || l.maxBackups <= 0 || l.maxAgeDay <= 0 {
-		l.SetFileRotate(l.maxSizeMB, l.maxBackups, l.maxAgeDay)
-	}
 	return l
 }
 

@@ -161,11 +161,13 @@ func main() {
 ```
 
 When `SetSplitByLevel(true)`:
+
 - Each log level is written to its own file only
 - No IO duplication, better performance
 - Files: `demo_debug.log`, `demo_info.log`, `demo_warn.log`, `demo_error.log`, etc.
 
 When `SetSplitByLevel(false)` (default):
+
 - All logs are written to a single file
 - Better for high-throughput scenarios
 - File: `demo.log`
@@ -247,8 +249,6 @@ type LoggerInterface interface {
 # License
 
 ```
-Copyright [2021-2021] [github.com/hunterhug]
-
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -260,4 +260,7 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
+
+Copyright [2021-2021] [github.com/hunterhug] v2
+Copyright [2026-2030] [github.com/gopyjs] v3
 ```
