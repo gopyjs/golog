@@ -1,9 +1,9 @@
 # Golang日志库，非常简单的记录一切
 
-[![GitHub forks](https://img.shields.io/github/forks/hunterhug/golog.svg?style=social&label=Forks)](https://github.com/hunterhug/golog/v2/network)
-[![GitHub stars](https://img.shields.io/github/stars/hunterhug/golog.svg?style=social&label=Stars)](https://github.com/hunterhug/golog/v2/stargazers)
-[![GitHub last commit](https://img.shields.io/github/last-commit/hunterhug/golog.svg)](https://github.com/hunterhug/golog/v2)
-[![GitHub issues](https://img.shields.io/github/issues/hunterhug/golog.svg)](https://github.com/hunterhug/golog/v2/issues)
+[![GitHub forks](https://img.shields.io/github/forks/gopyjs/golog.svg?style=social&label=Forks)](https://github.com/gopyjs/golog/v3/network)
+[![GitHub stars](https://img.shields.io/github/stars/gopyjs/golog.svg?style=social&label=Stars)](https://github.com/gopyjs/golog/v3/stargazers)
+[![GitHub last commit](https://img.shields.io/github/last-commit/gopyjs/golog.svg)](https://github.com/gopyjs/golog/v3)
+[![GitHub issues](https://img.shields.io/github/issues/gopyjs/golog.svg)](https://github.com/gopyjs/golog/v3/issues)
 [![License](https://img.shields.io/badge/license-Apache%202-4EB1BA.svg)](https://www.apache.org/licenses/LICENSE-2.0.html)
 
 感谢 Uber 的开源项目 ZapLog，它的速度很快，非常快，且是工业级别应用于很多大型的生产环境。我从没见过这么快的日志库，于是我封装了一层，奥利给。
@@ -21,7 +21,7 @@
 非常简单，您只需要常规执行:
 
 ```
-go get -v -u github.com/hunterhug/golog/v2
+go get -v -u github.com/gopyjs/golog/v3
 ```
 
 ## 例子
@@ -35,7 +35,7 @@ go get -v -u github.com/hunterhug/golog/v2
 ```go
 package main
 
-import . "github.com/hunterhug/golog/v2"
+import . "github.com/gopyjs/golog/v3"
 
 func main() {
 	// use default log
@@ -94,7 +94,7 @@ package main
 import (
 	"context"
 	"fmt"
-	. "github.com/hunterhug/golog/v2"
+	. "github.com/gopyjs/golog/v3"
 	"time"
 )
 
@@ -144,7 +144,7 @@ func main() {
 package main
 
 import (
-    . "github.com/hunterhug/golog/v2"
+    . "github.com/gopyjs/golog/v3"
 )
 
 func main() {

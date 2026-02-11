@@ -1,9 +1,9 @@
 # Log the world very easy
 
-[![GitHub forks](https://img.shields.io/github/forks/hunterhug/golog.svg?style=social&label=Forks)](https://github.com/hunterhug/golog/v2/network)
-[![GitHub stars](https://img.shields.io/github/stars/hunterhug/golog.svg?style=social&label=Stars)](https://github.com/hunterhug/golog/v2/stargazers)
-[![GitHub last commit](https://img.shields.io/github/last-commit/hunterhug/golog.svg)](https://github.com/hunterhug/golog/v2)
-[![GitHub issues](https://img.shields.io/github/issues/hunterhug/golog.svg)](https://github.com/hunterhug/golog/v2/issues)
+[![GitHub forks](https://img.shields.io/github/forks/gopyjs/golog.svg?style=social&label=Forks)](https://github.com/gopyjs/golog/v3/forks)
+[![GitHub stars](https://img.shields.io/github/stars/gopyjs/golog.svg?style=social&label=Stars)](https://github.com/gopyjs/golog/v3/stargazers)
+[![GitHub last commit](https://img.shields.io/github/last-commit/gopyjs/golog.svg)](https://github.com/gopyjs/golog/v3)
+[![GitHub issues](https://img.shields.io/github/issues/gopyjs/golog.svg)](https://github.com/gopyjs/golog/v3/issues)
 [![License](https://img.shields.io/badge/license-Apache%202-4EB1BA.svg)](https://www.apache.org/licenses/LICENSE-2.0.html)
 
 Thanks To Uber ZapLog! Log to console or file very easy and fast!
@@ -15,7 +15,7 @@ Thanks To Uber ZapLog! Log to console or file very easy and fast!
 Simple：
 
 ```
-go get -v github.com/hunterhug/golog/v2
+go get -v github.com/gopyjs/golog/v3
 ```
 
 ## Demo
@@ -27,7 +27,7 @@ default logger is InfoLevel, and has long func caller.
 ```go
 package main
 
-import . "github.com/hunterhug/golog/v2"
+import . "github.com/gopyjs/golog/v3"
 
 func main() {
 	// use default log
@@ -86,7 +86,7 @@ package main
 import (
 	"context"
 	"fmt"
-	. "github.com/hunterhug/golog/v2"
+	. "github.com/gopyjs/golog/v3"
 	"time"
 )
 
@@ -136,7 +136,7 @@ By default, all logs are written to a single file (`app.log`). You can also spli
 package main
 
 import (
-    . "github.com/hunterhug/golog/v2"
+    . "github.com/gopyjs/golog/v3"
 )
 
 func main() {

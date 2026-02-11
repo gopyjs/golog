@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	. "github.com/hunterhug/golog/v2"
+	. "github.com/gopyjs/golog/v3"
 )
 
 func main() {

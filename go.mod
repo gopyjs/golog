@@ -1,4 +1,4 @@
-module github.com/hunterhug/golog/v2
+module github.com/gopyjs/golog/v3
 
 go 1.25.5
 
