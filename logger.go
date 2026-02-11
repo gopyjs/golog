@@ -11,10 +11,13 @@ import (
 type Level = zapcore.Level
 
 const (
-	DebugLevel = zapcore.DebugLevel
-	InfoLevel  = zapcore.InfoLevel
-	WarnLevel  = zapcore.WarnLevel
-	ErrorLevel = zapcore.ErrorLevel
+	DebugLevel  = zapcore.DebugLevel // -1
+	InfoLevel   = zapcore.InfoLevel  // 0
+	WarnLevel   = zapcore.WarnLevel
+	ErrorLevel  = zapcore.ErrorLevel
+	DPanicLevel = zapcore.DPanicLevel
+	FatalLevel  = zapcore.FatalLevel
+	PanicLevel  = zapcore.PanicLevel
 )
 
 func StringLevel(level string) Level {
@@ -27,9 +30,13 @@ func StringLevel(level string) Level {
 		return zapcore.WarnLevel
 	case "error":
 		return zapcore.ErrorLevel
+	case "fatal":
+		return zapcore.FatalLevel
+	case "panic":
+		return zapcore.PanicLevel
+	default:
+		return zapcore.InfoLevel
 	}
-
-	return zapcore.InfoLevel
 }
 
 // LoggerInterface hide something you can implement new one
@@ -42,6 +49,7 @@ type LoggerInterface interface {
 	SetIsOutputStdout(isOutputStdout bool) LoggerInterface
 	SetCallerSkip(skip int) LoggerInterface
 	SetOutputJson(json bool) LoggerInterface
+	SetSplitByLevel(split bool) LoggerInterface
 
 	GetOutputFile() (logPath, fileName string)
 	GetFileRotate() (maxSizeMB int, maxBackups int, maxAgeDay int)
@@ -51,6 +59,7 @@ type LoggerInterface interface {
 	GetIsOutputStdout() (isOutputStdout bool)
 	GetCallerSkip() (skip int)
 	GetOutputJson() bool
+	GetSplitByLevel() (split bool)
 
 	// InitLogger init logger should call this when change config
 	InitLogger()

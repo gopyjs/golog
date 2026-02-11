@@ -29,8 +29,10 @@ type logger struct {
 	maxBackups int
 	maxAgeDay  int
 
-	isOutputStdout bool
 	skip           int
+	isOutputStdout bool
+	isOutputFile   bool
+	splitByLevel   bool
 }
 
 var _log = New()
@@ -53,11 +55,29 @@ func New() LoggerInterface {
 	l.level = InfoLevel
 	l.short = false
 	l.json = false
+	l.splitByLevel = false
+	l.isOutputFile = false
+	l.isOutputStdout = true
 	return l
 }
 
-// InitLogger after config you must call this method
-func (l *logger) InitLogger() {
+// ; levelConfig 定义按级别拆分日志时的级别配置表
+var levelConfigs = []struct {
+	level       Level
+	suffix      string
+	defaultName string
+}{
+	{DebugLevel, "_debug", "access.log"},
+	{InfoLevel, "_info", "info.log"},
+	{WarnLevel, "_warn", "warn.log"},
+	{ErrorLevel, "_err", "error.log"},
+	{DPanicLevel, "_dpanic", "dpanic.log"},
+	{FatalLevel, "_fatal", "fatal.log"},
+	{PanicLevel, "_panic", "panic.log"},
+}
+
+// ; buildEncoder 根据配置创建 zap encoder
+func (l *logger) buildEncoder() zapcore.Encoder {
 	encoderConfig := zap.NewProductionEncoderConfig()
 	encoderConfig.LevelKey = "l"
 	encoderConfig.FunctionKey = "func"
@@ -71,117 +91,84 @@ func (l *logger) InitLogger() {
 	} else {
 		encoderConfig.EncodeCaller = zapcore.FullCallerEncoder
 	}
-
 	encoderConfig.LineEnding = zapcore.DefaultLineEnding
-	var zConfig zapcore.Encoder
 
 	if !l.json {
 		encoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
-		zConfig = zapcore.NewConsoleEncoder(encoderConfig)
+		return zapcore.NewConsoleEncoder(encoderConfig)
+	}
+	return zapcore.NewJSONEncoder(encoderConfig)
+}
 
-	} else {
-		zConfig = zapcore.NewJSONEncoder(encoderConfig)
+// ; createFileCore 创建文件输出的 zapcore.Core
+func (l *logger) createFileCore(filename string, minLevel Level) zapcore.Core {
+	writer := getWriter(false, filename, l.maxSizeMB, l.maxBackups, l.maxAgeDay)
+	return zapcore.NewCore(
+		l.buildEncoder(),
+		zapcore.AddSync(writer),
+		zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
+			return lvl >= minLevel
+		}),
+	)
+}
+
+// ; createStdoutCore 创建 stdout 输出的 zapcore.Core
+func (l *logger) createStdoutCore() zapcore.Core {
+	encoder := l.buildEncoder()
+	return zapcore.NewCore(
+		encoder,
+		zapcore.AddSync(os.Stdout),
+		zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
+			return lvl >= l.level
+		}),
+	)
+}
+
+// ; buildCores 构建所有日志输出 core
+func (l *logger) buildCores() []zapcore.Core {
+	cores := make([]zapcore.Core, 0)
+
+	if l.logPath == "" {
+		//; 无文件输出路径，仅输出到 stdout
+		return []zapcore.Core{l.createStdoutCore()}
 	}
 
-	var outCore zapcore.Core
-
-	if l.logPath != "" {
-		cores := make([]zapcore.Core, 0)
-		debugFileName := filepath.Join(l.logPath, "access.log")
-		infoFileName := filepath.Join(l.logPath, "info.log")
-		warnFileName := filepath.Join(l.logPath, "warn.log")
-		errFileName := filepath.Join(l.logPath, "error.log")
-
-		if l.fileName != "" {
-			debugFileName = filepath.Join(l.logPath, l.fileName) + "_debug.log"
-			infoFileName = filepath.Join(l.logPath, l.fileName) + "_info.log"
-			warnFileName = filepath.Join(l.logPath, l.fileName) + "_warn.log"
-			errFileName = filepath.Join(l.logPath, l.fileName) + "_err.log"
+	if l.splitByLevel {
+		//; 按级别拆分文件：为每个符合条件的级别创建独立的 core
+		for _, cfg := range levelConfigs {
+			if l.level <= cfg.level {
+				filename := l.buildLogFileName(cfg.suffix, cfg.defaultName)
+				cores = append(cores, l.createFileCore(filename, cfg.level))
+			}
 		}
-
-		if l.level <= DebugLevel {
-			debugLevel := zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
-				return lvl >= DebugLevel
-			})
-
-			debugWriter := getWriter(false, debugFileName, l.maxSizeMB, l.maxBackups, l.maxAgeDay)
-			debugWriteSync := zapcore.AddSync(debugWriter)
-			core := zapcore.NewCore(
-				zConfig,
-				debugWriteSync,
-				debugLevel,
-			)
-
-			cores = append(cores, core)
-		}
-
-		if l.level <= InfoLevel {
-			infoLevel := zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
-				return lvl >= InfoLevel
-			})
-
-			infoWriter := getWriter(false, infoFileName, l.maxSizeMB, l.maxBackups, l.maxAgeDay)
-			infoWriteSync := zapcore.AddSync(infoWriter)
-			core := zapcore.NewCore(
-				zConfig,
-				infoWriteSync,
-				infoLevel,
-			)
-			cores = append(cores, core)
-		}
-
-		if l.level <= WarnLevel {
-			warnLevel := zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
-				return lvl >= WarnLevel
-			})
-
-			warnWriter := getWriter(false, warnFileName, l.maxSizeMB, l.maxBackups, l.maxAgeDay)
-			warnWriteSync := zapcore.AddSync(warnWriter)
-			core := zapcore.NewCore(
-				zConfig,
-				warnWriteSync,
-				warnLevel,
-			)
-			cores = append(cores, core)
-		}
-
-		if l.level <= ErrorLevel {
-			errorLevel := zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
-				return lvl >= ErrorLevel
-			})
-
-			errorWriter := getWriter(false, errFileName, l.maxSizeMB, l.maxBackups, l.maxAgeDay)
-			errorWriteSync := zapcore.AddSync(errorWriter)
-			core := zapcore.NewCore(
-				zConfig,
-				errorWriteSync,
-				errorLevel,
-			)
-			cores = append(cores, core)
-
-		}
-
-		if l.isOutputStdout {
-			stdOutLevel := zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
-				return lvl >= l.level
-			})
-			core := zapcore.NewCore(
-				zConfig,
-				zapcore.AddSync(os.Stdout),
-				stdOutLevel,
-			)
-			cores = append(cores, core)
-		}
-		outCore = zapcore.NewTee(cores...)
-
 	} else {
-		writeSync := zapcore.AddSync(os.Stdout)
-		outCore = zapcore.NewCore(
-			zConfig,
-			writeSync,
-			l.level,
-		)
+		//; 不区分级别，所有日志写入同一个文件
+		filename := l.buildLogFileName("", "app.log")
+		cores = append(cores, l.createFileCore(filename, l.level))
 	}
+
+	if l.isOutputStdout {
+		cores = append(cores, l.createStdoutCore())
+	}
+
+	return cores
+}
+
+// ; buildLogFileName 构建日志文件名
+func (l *logger) buildLogFileName(suffix string, defaultName string) string {
+	if l.fileName != "" {
+		if suffix != "" {
+			return filepath.Join(l.logPath, l.fileName+suffix+".log")
+		}
+		return filepath.Join(l.logPath, l.fileName+".log")
+	}
+	return filepath.Join(l.logPath, defaultName)
+}
+
+// InitLogger after config you must call this method
+func (l *logger) InitLogger() {
+	cores := l.buildCores()
+	outCore := zapcore.NewTee(cores...)
 
 	op1 := zap.AddCaller()
 
@@ -289,6 +276,23 @@ func GetIsOutputStdout() (isOutputStdout bool) {
 
 func (l *logger) GetIsOutputStdout() (isOutputStdout bool) {
 	return l.isOutputStdout
+}
+
+func SetSplitByLevel(split bool) LoggerInterface {
+	return _log.SetSplitByLevel(split)
+}
+
+func (l *logger) SetSplitByLevel(split bool) LoggerInterface {
+	l.splitByLevel = split
+	return l
+}
+
+func GetSplitByLevel() (split bool) {
+	return _log.GetSplitByLevel()
+}
+
+func (l *logger) GetSplitByLevel() (split bool) {
+	return l.splitByLevel
 }
 
 func SetFileRotate(maxSizeMB int, maxBackups int, maxAgeDay int) LoggerInterface {
