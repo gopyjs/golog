@@ -45,6 +45,14 @@ clean:
 	rm -rf ./log
 	go clean -cache
 
+
+## tag: Create git tag for current version
+tag:
+	@echo "Creating git tag v$(VERSION)..."
+	git tag v$(VERSION) -m "Release version $(VERSION)"
+	git push --tags origin v$(VERSION)
+	@echo "Push with: git push origin v$(VERSION)"
+
 ## publish-version: Publish version to Go proxy (forces go mod cache refresh)
 publish-version:
 	@echo "Publishing version $(VERSION) to Go proxy..."
@@ -56,9 +64,3 @@ publish-version:
 	@echo "  2. Module is accessible at: $(MODULE)"
 	@echo ""
 	@echo "Go proxy will cache the module within a few minutes."
-
-## tag: Create git tag for current version
-tag:
-	@echo "Creating git tag v$(VERSION)..."
-	git tag v$(VERSION) -m "Release version $(VERSION)"
-	@echo "Push with: git push origin v$(VERSION)"
