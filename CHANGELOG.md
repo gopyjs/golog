@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [3.0.0] - 2026-02-10
 
+### forked: https://github.com/gopyjs/golog/v3
+
 ### Added
 
 - **New Configuration: `splitByLevel`**
@@ -56,6 +58,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed potential IO overhead when logs were written to multiple files simultaneously
 
 ## [2.0.0] - Previous Release
+
+### origin: https://github.com/hunterhug/golog/v2
 
 ### Features
 
