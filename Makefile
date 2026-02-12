@@ -45,13 +45,18 @@ clean:
 	rm -rf ./log
 	go clean -cache
 
-
 ## tag: Create git tag for current version
-tag:
+add-tag:
 	@echo "Creating git tag v$(VERSION)..."
 	git tag v$(VERSION) -m "Release version $(VERSION)"
 	git push --tags origin v$(VERSION)
 	@echo "Push with: git push origin v$(VERSION)"
+
+del-tag:
+	@echo "Deleting git tag v$(VERSION)..."
+	git tag -d v$(VERSION)
+	git push origin :refs/tags/v$(VERSION)
+	@echo "Push with: git push origin :refs/tags/v$(VERSION)"
 
 ## publish-version: Publish version to Go proxy (forces go mod cache refresh)
 publish-version:
